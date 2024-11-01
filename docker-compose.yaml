@@ -1,0 +1,34 @@
+version: '3'
+services:
+  k6:
+    image: grafana/k6
+    volumes:
+      - ./script.js:/src/script.js
+    entrypoint: ["k6", "run", "/src/script.js"]
+    networks:
+      - test-net
+    depends_on:
+      - nginx
+  
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    networks:
+      - test-net
+  
+  tcpdump:
+    image: nicolaka/netshoot # Using netshoot instead of dockersec/tcpdump for better networking tools
+    command: ["/bin/sh", "-c", "tcpdump -i any -n 'tcp port 80 or tcp port 8080' -w /captures/traffic.pcap"]
+    network_mode: "service:nginx" # Attach to nginx's network namespace
+    volumes:
+      - ./captures:/captures
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    depends_on:
+      - nginx
+
+networks:
+  test-net:
+    driver: bridge
